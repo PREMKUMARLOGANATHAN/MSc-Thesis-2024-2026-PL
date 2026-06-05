@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
-def ccm_result(func, X, Y, L_range, tau_y, tau_x, E_y, E_x, L1 = 'X causes Y', L2 = 'Y causes X', N = 100):
+def ccm_result_bootstrap(func, X, Y, L_range, tau_y, tau_x, E_y, E_x, L1 = 'X causes Y', L2 = 'Y causes X', N = 100):
     
     '''
     
