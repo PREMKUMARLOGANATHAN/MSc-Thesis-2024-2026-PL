@@ -120,7 +120,7 @@ amu_df['AnimalType'] = amu_df['AnimalType'].replace(animal_name_map)
 amu_df_for_clustering = amu_df.groupby(['YY-MM', 'Active_Substance', 'AnimalType'])[['Total_Active_Substance']].sum().reset_index()
 table_for_clustering = pd.pivot_table(data = amu_df_for_clustering, index = 'YY-MM', values = 'Total_Active_Substance', columns = ['AnimalType', 'Active_Substance'])
 
-def has_consecutive_nans(series, threshold):
+def has_consecutive_nans(series, threshold): # thanks to Gen AI
     
     nan_vals = series.isna()
     group = (~nan_vals).cumsum()
@@ -145,9 +145,6 @@ ax1, ax2 = ax
 ax1.plot(table_for_clustering.index, table_for_clustering[cols_to_drop], '.', color = 'grey', alpha = 0.6)
 ax2.plot(table_for_clustering.index, table_for_clustering[cols_missing], '.', color = 'red', alpha = 0.7)
 
-
-
-# a = preprocessing(pd.DataFrame(data = dict(AMU = amu_df_cleaned.mean(axis = 1).values, Temp = temp.values, RH = rh.values, WS = ws.values, Prec = prec.values), index = amu_df_cleaned.index))
 amu_df_filled = preprocessing(amu_df_cleaned.interpolate())
 
 k_vals = np.arange(2, 19, 1)
@@ -236,46 +233,28 @@ tsne = TSNE(
     perplexity=17,
     random_state=42)
 
-X_embedded = tsne.fit_transform(amu_df_filled.T)
+X_new = tsne.fit_transform(amu_df_filled.T)
 
-print(f'KL divergence: {tsne.kl_divergence_:.4f}')
+print(f'KL divergence: {tsne.kl_divergence_}')
 
-X_tsne = pd.DataFrame(
-    X_embedded,
-    columns=['TSNE1', 'TSNE2'],
-    index=cols)
-
+X_tsne = pd.DataFrame(X_new, columns=['TSNE1', 'TSNE2'], index=cols)
 X_tsne['Cluster'] = c_l
 
 fig, ax = plt.subplots(figsize=(10, 8))
 
 for cluster in sorted(X_tsne['Cluster'].unique()):
 
-    subset = X_tsne[X_tsne['Cluster'] == cluster]
-
-    ax.scatter(
-        subset['TSNE1'],
-        subset['TSNE2'],
-        s=25,
-        color=colors[int(cluster) % len(colors)],
-        label=f'Cluster {cluster}')
-
-    # Add labels
-    for idx, row in subset.iterrows():
-        ax.text(
-            row['TSNE1'] + 0.1,
-            row['TSNE2'] + 0.1,
-            cluster + 1,
-            fontsize=8.5)
+    data = X_tsne[X_tsne['Cluster'] == cluster]
+    ax.scatter(data['TSNE1'], data['TSNE2'], s=25,
+        color=colors[int(cluster) % len(colors)], label=f'Cluster {cluster}')
+    for idx, row in data.iterrows():
+        ax.text(row['TSNE1'] + 0.1, row['TSNE2'] + 0.1, cluster + 1, fontsize=8.5)
 
 ax.set_title(
     't-SNE projection of AMU in Food Producing \nAnimals in Belgium coloured by K-means clusters',
-    fontsize=12,
-    fontweight='bold')
-
+    fontsize=12, fontweight='bold')
 ax.set_xlabel('t-SNE Dimension 1')
 ax.set_ylabel('t-SNE Dimension 2')
-
 ax.grid(alpha=0.3)
 ax.legend(title='Cluster')
 
@@ -284,84 +263,25 @@ ax.legend(title='Cluster')
 animals = X_tsne.index.get_level_values(0)
 unique_animals = animals.unique()
 
-animal_colors = {
-    animal: colors[i % len(colors)]
-    for i, animal in enumerate(unique_animals)}
+animal_colors = {animal: colors[i % len(colors)] for i, animal in enumerate(unique_animals)}
 
 fig, ax = plt.subplots(figsize=(10, 8))
 
 for animal in unique_animals:
 
-    subset = X_tsne[animals == animal]
+    data = X_tsne[animals == animal]
 
-    ax.scatter(
-        subset['TSNE1'],
-        subset['TSNE2'],
-        s=25,
-        color=animal_colors[animal],
-        label=animal)
+    ax.scatter( data['TSNE1'], data['TSNE2'], s=25,
+        color=animal_colors[animal], label=animal)
 
-    for idx, row in subset.iterrows():
-        ax.text(
-            row['TSNE1'] + 0.1,
-            row['TSNE2'] + 0.1,
-            str(int(row['Cluster'] + 1)),
-            fontsize=8.5)
+    for idx, row in data.iterrows():
+        ax.text(row['TSNE1'] + 0.1, row['TSNE2'] + 0.1, str(int(row['Cluster'] + 1)), fontsize=8.5)
 ax.set_title( 't-SNE projection of AMU in Food Producing \nAnimals in Belgium coloured by Animal Types',
              fontsize = 12, weight = 'bold')
 ax.set_xlabel('t-SNE Dimension 1')
 ax.set_ylabel('t-SNE Dimension 2')
 ax.grid(alpha=0.3)
 ax.legend(title='Animal')
-
-# perplexities = range(2, 32)  # 30 values
-
-# fig, axes = plt.subplots(3, 10, figsize=(30, 9))
-# axes = axes.flatten()
-
-# for ax, perplexity in zip(axes, perplexities):
-
-#     X_embedded = TSNE(
-#         n_components=2,
-#         perplexity=perplexity,
-#         random_state=42
-#     ).fit_transform(amu_df_filled.T)
-
-#     X_tsne = pd.DataFrame(
-#         X_embedded,
-#         columns=['TSNE1', 'TSNE2'],
-#         index=cols
-#     )
-
-#     X_tsne['Cluster'] = c_l
-
-#     for cluster in sorted(X_tsne['Cluster'].unique()):
-
-#         subset = X_tsne[X_tsne['Cluster'] == cluster]
-
-#         ax.scatter(
-#             subset['TSNE1'],
-#             subset['TSNE2'],
-#             s=15,
-#             color=colors[int(cluster) % len(colors)]
-#         )
-
-#         # Label with cluster number
-#         for _, row in subset.iterrows():
-#             ax.text(
-#                 row['TSNE1'],
-#                 row['TSNE2'],
-#                 str(cluster + 1),
-#                 fontsize=5
-#             )
-
-#     ax.set_title(f'p={perplexity}', fontsize=8)
-#     ax.set_xticks([])
-#     ax.set_yticks([])
-#     ax.grid(alpha=0.2)
-
-# plt.tight_layout()
-# plt.show()
 
 # %% AMU E coli
 
@@ -373,7 +293,7 @@ ax.tick_params('x', rotation = 90)
 ax.grid('--', alpha = 0.4)
 ax.legend()
 
-# %% Why clustering
+# %% Why clustering bring them together
 
 Nearby1 = [('Pigs', 'Apramycin'), ('Calves', 'Tulathromycin'), ('Poultry', 'Colistin'), ('Pigs', 'Neomycin'), ('Calves', 'Trimethoprim_Sulfonamide')]
 labels = [f'{animal} - {drug}' for animal, drug in Nearby1]
@@ -443,7 +363,6 @@ plt.show()
 # %% Investigating Causal Relationship using CCM
 
 # Noisy
-
 # 2 x 4 ACF
 
 fig, ax = plt.subplots(2, 4, sharex = True, sharey = True, figsize = (10, 6))
@@ -581,117 +500,3 @@ plt.tight_layout()
 
 ani.save('evolving_manifold_rotation.gif', writer='pillow', fps=25)
 plt.close(fig)'''
-
-# 4 x 4 causal relationship
-L_range = np.arange(38, 94, 5)
-cols = single_df.columns
-nvars = len(cols)
-
-cols = single_df.columns
-nvars = len(cols)
-
-L_range = np.arange(38, 94, 5)
-
-fig, axes = plt.subplots(
-    nvars,
-    nvars,
-    figsize=(3*nvars, 3*nvars),
-    sharex=True,
-    sharey=True
-)
-
-for i, cause in enumerate(cols):
-
-    for j, effect in enumerate(cols):
-
-        ax = axes[i, j]
-
-        # skip self-causation
-        if i == j:
-            ax.axis("off")
-            continue
-
-        ccm_result(
-            CCM.CCM,
-            single_df[cause].values,
-            single_df[effect].values,
-            L_range,
-
-            tau_y=tau_all[j],
-            tau_x=tau_all[i],
-
-            E_y=E_all[j],
-            E_x=E_all[i],
-
-            L1=f"{cause} → {effect}",
-            L2=f"{effect} → {cause}",
-            N=100,
-            ax=ax
-        )
-
-        if i == 0:
-            ax.set_title(effect, fontsize=10)
-
-        if j == 0:
-            ax.set_ylabel(cause, fontsize=10)
-
-plt.tight_layout()
-plt.show()
-
-import numpy as np
-import pandas as pd
-
-cols = single_df.columns
-nvars = len(cols)
-
-ccm_matrix = np.zeros((nvars, nvars))
-
-L = max(L_range)
-
-for i, cause in enumerate(cols):
-
-    for j, effect in enumerate(cols):
-
-        if i == j:
-            ccm_matrix[i, j] = np.nan
-            continue
-
-        ccm = CCM.CCM(
-            single_df[cause].values,
-            single_df[effect].values,
-
-            E_all[j],      # effect manifold
-            tau_all[j],
-            L
-        )
-
-        rho = ccm.causality()[0][1]
-
-        ccm_matrix[i, j] = rho
-
-ccm_df = pd.DataFrame(
-    ccm_matrix,
-    index=cols,
-    columns=cols
-)
-
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-plt.figure(figsize=(10,8))
-
-sns.heatmap(
-    ccm_df,
-    cmap="RdBu_r",
-    center=0,
-    annot=True,
-    fmt=".2f",
-    linewidths=0.5
-)
-
-plt.title("CCM Skill Matrix")
-plt.xlabel("Effect")
-plt.ylabel("Cause")
-
-plt.tight_layout()
-plt.show()
