@@ -36,7 +36,7 @@ warnings.filterwarnings('ignore')
 
 import afn # Cao's FNN for choosing optimal embedding dimension
 import CCM # Convergent Cross Mapping 
-from ccm_result import ccm_result # Plot CCM result with bootstrapping
+from ccm_result import ccm_result # Plot CCM result with bootstrapping # Note that this name is being changed in github. This file will not use this function
 from ccm_result_1 import ccm_result_1 # Plot CCM results without bootstrapping
 import manifold_visualisation as mv # Reconstruct shadow manifold
 from preprocessing import preprocessing # Convert data to zero mean and unit variance
