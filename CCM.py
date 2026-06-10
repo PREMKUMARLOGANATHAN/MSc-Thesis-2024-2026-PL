@@ -7,7 +7,7 @@ import manifold_visualisation as mv
 from scipy.spatial import KDTree
 
 # Inspired by Prince Xavier CCM github, pyEDM and telusko youtube channel,
-# Written by Prem Kumar Loganathan, for the thesis  
+# Written by Prem Kumar Loganathan, for the thesis on 'Impact of Climate Change on AntiMicrobial Resistane'
 # The class always is in the format of class_func(target, columns, params)
 # 
 # Here and in pyEDM target - causal and column - effect 
@@ -29,7 +29,7 @@ class CCM:
     def distance(self, M):
         
         # KDTree only returns a class variable (tree) - 
-        # this will be used to calculate the distance using query.
+        # this 'tree' will be used to calculate the distance using query.
 
         steps = np.arange((self.E - 1) * self.tau, self.L)
         tree = KDTree(M)
@@ -117,45 +117,4 @@ class CCM:
         ax.set_xlabel('Time [Months]')
         ax.set_ylabel('Original and Predicted Values')
         ax.set_xmargin(0)
-        plt.show()
-
-    def cross_map_visualiser(self):
-
-        Mx = mv.build_shadow(self.X[:self.L], self.E, self.tau)
-        My = mv.build_shadow(self.Y[:self.L], self.E, self.tau)
-
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (12, 6))
-
-        ax1.scatter(Mx[:, 0], Mx[:, 1], s = 7, c = "#0D39EC6D")
-        ax2.scatter(My[:, 0], My[:, 1], s = 7, c = "#FE0000")
-
-        steps, tree = self.distance(Mx)
-        t = np.random.randint(len(Mx)//2)
-        
-        nearby_dist, original_steps = self.nearby_distance(t, steps, tree)
-        base_row = t - (self.E - 1) * self.tau
-        
-        ax1.scatter(Mx[base_row, 0], Mx[base_row, 1], c = 'k', s = 50, label = 'Centroid')
-        ax2.scatter(My[base_row, 0], My[base_row, 1], c = 'k', s = 50, label = 'Cross Mapping')
-
-        for j in range(min(3, len(original_steps))):
-            row = original_steps[j] - (self.E - 1) * self.tau
-
-            A_t, A_lag = Mx[row, :2]
-            B_t, B_lag = My[row, :2]
-
-            ax1.scatter(A_t, A_lag, c = "#01FF1B", s = 15, label = f'Neighbours' if j == 0 else None)
-            ax2.scatter(B_t, B_lag, c = '#01FF1B', s = 15, label = f'Mapped Points' if j == 0 else None)
-
-        ax1.set_title(f'Neighbours used for Prediction')
-        ax1.set_xlabel('$X_t$')
-        ax1.set_ylabel('$X_{t-\\tau}$')
-        ax1.legend(loc = 'upper right')
-
-        ax2.set_title(f'Target Manifold Mapping')
-        ax2.set_xlabel('$Y_t$')
-        ax2.set_ylabel('$Y_{t-\\tau}$')
-        ax2.legend(loc = 'upper right')
-
-        plt.tight_layout()
         plt.show()
