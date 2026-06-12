@@ -8,8 +8,6 @@ This code is written by Prem Kumar Loganathan for the MSc Thesis titled,
 All the class objects and user-defined functions needed for this code is made available in the same repository. 
 No explanation will be provided anywhere in code until and unless necessary.
 
-“When I wrote this code, only God and I understood what I did. Now only God knows. Best of luck figuring out!”
-
 '''
 
 # %% Importing Libraries
@@ -122,7 +120,7 @@ amu_df['AnimalType'] = amu_df['AnimalType'].replace(animal_name_map)
 amu_df_for_clustering = amu_df.groupby(['YY-MM', 'Active_Substance', 'AnimalType'])[['Total_Active_Substance']].sum().reset_index()
 table_for_clustering = pd.pivot_table(data = amu_df_for_clustering, index = 'YY-MM', values = 'Total_Active_Substance', columns = ['AnimalType', 'Active_Substance'])
 
-def has_consecutive_nans(series, threshold): # thanks to Gen AI
+def has_consecutive_nans(series, threshold): # Thanks to GenAI
     
     nan_vals = series.isna()
     group = (~nan_vals).cumsum()
@@ -132,22 +130,11 @@ def has_consecutive_nans(series, threshold): # thanks to Gen AI
 
 cols_to_drop = [col for col in table_for_clustering.columns if has_consecutive_nans(table_for_clustering[col], 5)]
 amu_df_cleaned = table_for_clustering.drop(columns = cols_to_drop)
-more_than_6_months_missing = amu_df_cleaned.isna().sum()>6
-cols_missing = more_than_6_months_missing[more_than_6_months_missing].index.tolist()
-cols_to_drop = list(set(cols_to_drop + cols_missing))
-amu_df_cleaned = table_for_clustering.drop(columns = cols_to_drop)
 loss = ((table_for_clustering.shape[1] - amu_df_cleaned.shape[1]) / table_for_clustering.shape[1]) * 100
 print(f'Loss: {np.round(loss, 2)}%')
 
-# Gaps checking
-
-fig, ax = plt.subplots(2, 1, figsize = (7, 4))
-ax1, ax2 = ax
-
-ax1.plot(table_for_clustering.index, table_for_clustering[cols_to_drop], '.', color = 'grey', alpha = 0.6)
-ax2.plot(table_for_clustering.index, table_for_clustering[cols_missing], '.', color = 'red', alpha = 0.7)
-
-amu_df_filled = preprocessing(amu_df_cleaned.interpolate())
+# a = preprocessing(pd.DataFrame(data = dict(AMU = amu_df_cleaned.mean(axis = 1).values, Temp = temp.values, RH = rh.values, WS = ws.values, Prec = prec.values), index = amu_df_cleaned.index))
+amu_df_filled = preprocessing(amu_df_cleaned.interpolate().rolling(window = 5, center = True).mean().dropna())
 
 k_vals = np.arange(2, 19, 1)
 sse = []
@@ -177,10 +164,10 @@ plt.xlabel('Number of Clusters', fontweight = 'bold')
 plt.ylabel('Silhouette Score', fontweight = 'bold')
 plt.title('Silhouette Method', fontweight = 'bold')
 plt.grid()
-# plt.savefig('Choosing Optimal Clusters for AMU.png', dpi = 600)
+plt.savefig('Choosing Optimal Clusters for AMU.png', dpi = 600)
 plt.show()
 
-c = KMeans(n_clusters = 8, random_state = 42, n_init = 20).fit(amu_df_filled.T)
+c = KMeans(n_clusters = 6, random_state = 42, n_init = 20).fit(amu_df_filled.T)
 c_l = c.labels_
 
 def coordinates_plot(x, color_label, *args):
@@ -204,9 +191,9 @@ coordinates_plot(amu_df_filled.T.values, c_l, )
 
 c_l = np.array(c_l)
 cols = amu_df_filled.columns
-colors = cm.Set1.colors
+colors = cm.tab10.colors
 
-fig, ax = plt.subplots(8, 1, figsize = (10, 12), sharex = True)
+fig, ax = plt.subplots(6, 1, figsize = (10, 12), sharex = True)
 ax = ax.flatten()
 cluster_means = {}
 for i, clust in enumerate(np.unique(c_l)):
@@ -226,18 +213,15 @@ for i, clust in enumerate(np.unique(c_l)):
     ax[i].set_title(f'Cluster {i + 1}', loc = 'left', size = 8.5)
     ax[i].grid()
 
-fig.supylabel('Total Active Substance (Normalised)', x = 0.04)
-fig.supxlabel('Time [Month]', y = -0.05)
-fig.suptitle('Antimicrobial Usage in Food Producing Animals', y = 0.97)
+fig.supylabel('Total Active Substance (Normalised)')
+fig.supxlabel('Time [Month]')
+fig.suptitle('Antimicrobial Usage in Food Producing Animals')
+plt.tight_layout()
+plt.show()
 
-tsne = TSNE(
-    n_components=2,
-    perplexity=17,
-    random_state=42)
-
+tsne = TSNE(n_components=2, perplexity=7, random_state=42)
 X_new = tsne.fit_transform(amu_df_filled.T)
-
-print(f'KL divergence: {tsne.kl_divergence_}')
+print(f'KL divergence: {tsne.kl_divergence_:.4f}')
 
 X_tsne = pd.DataFrame(X_new, columns=['TSNE1', 'TSNE2'], index=cols)
 X_tsne['Cluster'] = c_l
@@ -247,14 +231,14 @@ fig, ax = plt.subplots(figsize=(10, 8))
 for cluster in sorted(X_tsne['Cluster'].unique()):
 
     data = X_tsne[X_tsne['Cluster'] == cluster]
+
     ax.scatter(data['TSNE1'], data['TSNE2'], s=25,
         color=colors[int(cluster) % len(colors)], label=f'Cluster {cluster}')
-    for idx, row in data.iterrows():
-        ax.text(row['TSNE1'] + 0.1, row['TSNE2'] + 0.1, cluster + 1, fontsize=8.5)
 
-ax.set_title(
-    't-SNE projection of AMU in Food Producing \nAnimals in Belgium coloured by K-means clusters',
-    fontsize=12, fontweight='bold')
+    for idx, row in data.iterrows():
+        ax.text(row['TSNE1'] + 0.1, row['TSNE2'] + 0.1, idx, fontsize=8.5)
+
+ax.set_title('t-SNE projection of AMU in Food Producing \nAnimals in Belgium coloured by K-means clusters', fontsize=12, fontweight='bold')
 ax.set_xlabel('t-SNE Dimension 1')
 ax.set_ylabel('t-SNE Dimension 2')
 ax.grid(alpha=0.3)
@@ -265,7 +249,9 @@ ax.legend(title='Cluster')
 animals = X_tsne.index.get_level_values(0)
 unique_animals = animals.unique()
 
-animal_colors = {animal: colors[i % len(colors)] for i, animal in enumerate(unique_animals)}
+animal_colors = {
+    animal: colors[i % len(colors)]
+    for i, animal in enumerate(unique_animals)}
 
 fig, ax = plt.subplots(figsize=(10, 8))
 
@@ -273,12 +259,13 @@ for animal in unique_animals:
 
     data = X_tsne[animals == animal]
 
-    ax.scatter( data['TSNE1'], data['TSNE2'], s=25,
+    ax.scatter(data['TSNE1'], data['TSNE2'], s=25,
         color=animal_colors[animal], label=animal)
 
     for idx, row in data.iterrows():
-        ax.text(row['TSNE1'] + 0.1, row['TSNE2'] + 0.1, str(int(row['Cluster'] + 1)), fontsize=8.5)
-ax.set_title( 't-SNE projection of AMU in Food Producing \nAnimals in Belgium coloured by Animal Types',
+        ax.text( row['TSNE1'] + 0.1, row['TSNE2'] + 0.1,
+            str(int(row['Cluster'] + 1)), fontsize=8.5)
+ax.set_title('t-SNE projection of AMU in Food Producing \nAnimals in Belgium coloured by Animal Types',
              fontsize = 12, weight = 'bold')
 ax.set_xlabel('t-SNE Dimension 1')
 ax.set_ylabel('t-SNE Dimension 2')
@@ -295,37 +282,32 @@ ax.tick_params('x', rotation = 90)
 ax.grid('--', alpha = 0.4)
 ax.legend()
 
-# %% Why clustering bring them together
+# %% Why clustering
 
-Nearby1 = [('Pigs', 'Apramycin'), ('Calves', 'Tulathromycin'), ('Poultry', 'Colistin'), ('Pigs', 'Neomycin'), ('Calves', 'Trimethoprim_Sulfonamide')]
-labels = [f'{animal} - {drug}' for animal, drug in Nearby1]
+Nearby1 = [('Calves', 'Marbofloxacin'), ('Calves', 'Gamithromycin')]
+Nearby2 = [('Pigs', 'Tulathromycin'), ('Pigs', 'Florfenicol')]
+
+labels1 = [f'{animal} - {drug}' for animal, drug in Nearby1]
+labels2 = [f'{animal} - {drug}' for animal, drug in Nearby2]
 
 fig, ax = plt.subplots(figsize=(12, 6))
 
-for col, label in zip(Nearby1, labels):
-    ax.plot(amu_df_filled.index,
-        amu_df_filled[col], alpha = 0.9,
-        linewidth=2, label=label)
-
+for col, label in zip(Nearby1, labels1):
+    ax.plot(amu_df_filled.index, amu_df_filled[col], alpha = 0.9,
+        linewidth=1.2, label=label)
 ax.set_title('Antimicrobial Usage in Food Producing Animals in Belgium')
-
 ax.set_xlabel('Time [Months]')
 ax.set_ylabel('Normalised Active Substance Consumed')
-
 ax.grid(True, alpha=0.25)
 ax.set_xticks(amu_df_filled.index[4::6])
-ax.legend(
-    bbox_to_anchor=(1.02, 1),
-    loc='upper left',
-    frameon=False,
-    title='Animal - Antimicrobial')
+ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', title='Animal - Antimicrobial')
 ax.tick_params('x', rotation = 90)
 ax.set_xmargin(0)
 plt.tight_layout()
 plt.show()
 
 # %% Investigating Causal Relationship using Correlation Coefficient
-
+# Dont do after smoothing
 single_df = pd.DataFrame({
     'Full AMU': amu_df_filled.mean(axis=1),
     'AMU Clust 1': cluster_means['clust_0'],
@@ -362,16 +344,76 @@ plt.setp(ax.get_yticklabels(), va ='center')
 plt.tight_layout()
 plt.show()
 
-# %% Investigating Causal Relationship using CCM
+# %% Smoothing Climate Variables
 
-# Noisy
-# 2 x 4 ACF
+Temperature = pd.DataFrame(temp.values).rolling(window = 5, center = True).mean().dropna()
+Windspeed = pd.DataFrame(ws.values).rolling(window = 3, center = True).mean().dropna()
+RH = pd.DataFrame(rh.values).rolling(window = 5, center = True).mean().dropna()
+Precipitation = pd.DataFrame(prec.values).rolling(window = 3, center = True).mean().dropna()
 
-fig, ax = plt.subplots(2, 4, sharex = True, sharey = True, figsize = (10, 6))
+fig, axes = plt.subplots(2, 2, figsize=(14, 8), sharex=True)
+
+variables = [(temp.values, Temperature.values, 'Temperature', 'tab:red'),
+    (ws.values, Windspeed.values, 'Wind Speed', 'tab:blue'),
+    (rh.values, RH.values, 'Relative Humidity', 'tab:green'),
+    (prec.values, Precipitation.values, 'Precipitation', 'tab:purple')]
+
+for ax, (original, smooth, title, color) in zip(axes.ravel(), variables):
+
+    ax.plot(original, color='black', linestyle='--', linewidth=1, alpha=0.5, label='Original')
+    if title == 'Wind Speed' or title == 'Precipitation':
+        ax.plot(np.arange(1, len(smooth) + 1), smooth,
+                color=color, linewidth=2, label='Smmothed')
+    else:
+        ax.plot(np.arange(2, len(smooth) + 2), smooth,
+                color=color, linewidth=2, label='Smmothed')
+    ax.set_title(title, loc = 'left')
+    ax.grid('--', color = 'grey', alpha = 0.3)
+    ax.legend()
+    ax.set_xmargin(0)
+fig.suptitle('Climatic Variables Before and After Smoothing',)
+fig.supxlabel('Time [Months]')
+plt.tight_layout()
+plt.show()
+
+# %% Investigating Causal Relationship using CCM for 6 clusters
+# Putting all in single df
+cluster_df = pd.DataFrame(cluster_means)
+all_in_df = amu_df_filled.mean(axis = 1)
+pig_all_df = amu_df_filled['Pigs'].mean(axis = 1)
+pltr_all_df = amu_df_filled['Poultry'].mean(axis = 1)
+calf_all_df = amu_df_filled['Calves'].mean(axis = 1)
+
+full_df = pd.concat([all_in_df.rename('All AMU'),pig_all_df.rename('Pigs'),
+        pltr_all_df.rename('Poultry'), calf_all_df.rename('Calves'), cluster_df], axis = 1)
+
+fig, ax = plt.subplots(2, 5, figsize = (20,8), sharex = True)
 ax = ax.flatten()
 
-for i, j in enumerate(single_df.columns):
-    plot_acf(single_df[j], lags = 25, ax = ax[i], title = j, 
+for i, j in enumerate(full_df.columns):
+    
+    ax[i].plot(full_df.index, full_df[j], marker = 'o', lw = 1.2, color = 'tab:blue')
+    ax[i].set_title(j, loc = 'left')
+    ax[i].grid('--', c = 'grey', alpha = 0.3)
+    ax[i].tick_params('x', rotation = 90)
+    ax[i].set_xticks(full_df.index[1::6])
+    ax[i].set_xmargin(0)
+
+fig.suptitle('Antimicrobial Usage in Food Producing Animals')
+fig.supxlabel('Time[Months]')
+fig.supylabel('Active Substance Consumed (Normalised)')
+plt.tight_layout()
+plt.show()
+
+# Noisy
+
+# 2 x 5 ACF
+
+fig, ax = plt.subplots(2, 5, sharex = True, sharey = True, figsize = (10, 6))
+ax = ax.flatten()
+
+for i, j in enumerate(full_df.columns):
+    plot_acf(full_df[j], lags = 25, ax = ax[i], title = j, 
              zero = False, color = 'k', alpha = None,)
     ax[i].axhline(y = 1/np.exp(1), ls = '--', color = 'k', 
                   alpha = 0.8, label = 'threshold')
@@ -387,12 +429,12 @@ plt.show()
 
 # 2 x 4 Mutual Information
 
-fig, ax = plt.subplots(2, 4, sharex = True, figsize = (12, 6))
+fig, ax = plt.subplots(2, 5, sharex = True, figsize = (12, 6))
 ax = ax.flatten()
 
-for i, j in enumerate(single_df.columns):
+for i, j in enumerate(full_df.columns):
     
-    mutual_info = tdmi.tdmi(single_df[j], 9, 4)
+    mutual_info = tdmi.tdmi(full_df[j], 9, 4)
     ax[i].plot(np.arange(1,10,1), mutual_info, 'o-', )
     ax[i].grid('--', alpha = 0.4, color = 'grey')
     ax[i].set_title(j, fontsize=11)
@@ -403,25 +445,25 @@ fig.suptitle('Average Mutual Information')
 plt.tight_layout()
 plt.show()
 
-tau_all = [6, 2, 2, 2, 4, 3, 2, 4]
+tau_all = [4, 4, 5, 6, 5, 5, 5, 5, 6, 5]
 
 # 2 x 4 Cao's FNN
 
-fig, ax = plt.subplots(2, 4, sharex = True, figsize = (12, 6))
+fig, ax = plt.subplots(2, 5, sharex = True, figsize = (12, 6))
 ax = ax.flatten()
 max_E = 11
 
-for i, j in enumerate(single_df.columns):
+for i, j in enumerate(full_df.columns):
     
     opt_E = []
     for e in np.arange(1, max_E):
 
-        r = afn.afn(single_df[j], e, tau_all[i], 'euclidean', 1, None)
+        r = afn.afn(full_df[j], e, tau_all[i], 'euclidean', 1, None)
         opt_E.append(np.asarray(r).T)
         
     E1 = [opt_E[i][0] / opt_E[i-1][0] for i in range(1, len(opt_E))]
     ax[i].plot(np.arange(1, max_E-1), E1, 'o-')
-    ax[i].axhline(y = 0.9, ls = '--', label = 'threshold', color = 'grey')
+    # ax[i].axhline(y = 0.9, ls = '--', label = 'threshold', color = 'grey')
     ax[i].grid('--', alpha = 0.4, color = 'grey')
     ax[i].set_title(j, fontsize=11)
     
@@ -431,16 +473,16 @@ fig.suptitle("Cao's FNN for choosing optimal embedding dimension")
 plt.tight_layout()
 plt.show()
 
-E_all = [6, 5, 5, 5, 4, 5, 5, 4]
+E_all = [4, 6, 4, 4, 6, 5, 5, 4, 4, 6]
 
 # 2 x 4 shadow manifold
 
-fig, ax = plt.subplots(2, 4, subplot_kw = dict(projection = '3d'), figsize = (12, 6))
+fig, ax = plt.subplots(2, 5, subplot_kw = dict(projection = '3d'), figsize = (12, 6))
 ax = ax.flatten()
 
-for i, j in enumerate(single_df.columns): 
+for i, j in enumerate(full_df.columns): 
     
-    M = mv.build_shadow(single_df[j], E_all[i], tau_all[i])
+    M = mv.build_shadow(full_df[j], E_all[i], tau_all[i])
     ax[i].plot(M[:,0], M[:,1], M[:,2], lw = 1.2)
     ax[i].set_title(j, size = 9)
 
@@ -489,16 +531,495 @@ def update(frame):
         
         ax[i].view_init(elev=elev_angle, azim=azim_angle)
         
-    return line_plots
+    'return line_plots
 
 ani = FuncAnimation(
     fig, 
     update, 
     frames=total_frames, 
     interval=40, 
-    blit=False)
+    blit=Fa'lse)
 
 plt.tight_layout()
 
 ani.save('evolving_manifold_rotation.gif', writer='pillow', fps=25)
 plt.close(fig)'''
+
+'''# 4 x 4 causal relationship
+L_range = [np.arange(38, 94, 5)]
+cols = single_df.columns
+nvars = len(cols)
+
+cols = single_df.columns
+nvars = len(cols)
+
+L_range = np.arange(38, 94, 5)
+
+fig, axes = plt.subplots(
+    nvars,
+    nvars,
+    figsize=(3*nvars, 3*nvars),
+    sharex=True,
+    sharey=True
+)
+
+for i, cause in enumerate(cols):
+
+    for j, effect in enumerate(cols):
+
+        ax = axes[i, j]
+
+        # skip self-causation
+        if i == j:
+            ax.axis("off")
+            continue
+
+        ccm_result(
+            CCM.CCM,
+            single_df[cause].values,
+            single_df[effect].values,
+            L_range,
+
+            tau_y=tau_all[j],
+            tau_x=tau_all[i],
+
+            E_y=E_all[j],
+            E_x=E_all[i],
+
+            L1=f"{cause} → {effect}",
+            L2=f"{effect} → {cause}",
+            N=100,
+            ax=ax
+        )
+
+        if i == 0:
+            ax.set_title(effect, fontsize=10)
+
+        if j == 0:
+            ax.set_ylabel(cause, fontsize=10)
+
+plt.tight_layout()
+plt.show()
+
+import numpy as np
+import pandas as pd
+
+cols = single_df.columns
+nvars = len(cols)
+
+ccm_matrix = np.zeros((nvars, nvars))
+
+L = max(L_range)
+
+for i, cause in enumerate(cols):
+
+    for j, effect in enumerate(cols):
+
+        if i == j:
+            ccm_matrix[i, j] = np.nan
+            continue
+
+        ccm = CCM.CCM(
+            single_df[cause].values,
+            single_df[effect].values,
+
+            E_all[j],      # effect manifold
+            tau_all[j],
+            L
+        )
+
+        rho = ccm.causality()[0][1]
+
+        ccm_matrix[i, j] = rho
+
+ccm_df = pd.DataFrame(
+    ccm_matrix,
+    index=cols,
+    columns=cols
+)
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(10,8))
+
+sns.heatmap(
+    ccm_df,
+    cmap="RdBu_r",
+    center=0,
+    annot=True,
+    fmt=".2f",
+    linewidths=0.5
+)
+
+plt.title("CCM Skill Matrix")
+plt.xlabel("Effect")
+plt.ylabel("Cause")
+
+plt.tight_layout()
+plt.show()'''
+
+# %% Finding optimal Paramters for climate variables
+
+climate_vars1 = pd.DataFrame({'Temperature': Temperature.squeeze(), 'RH': RH.squeeze()})
+climate_vars2 = pd.DataFrame({'Windspeed': Windspeed.squeeze(), 'Precipitation': Precipitation.squeeze()})
+
+c1_processed = preprocessing(climate_vars1)
+c2_processed = preprocessing(climate_vars2)
+
+# Investigate Parameters
+
+# 1 x 2 ACF
+
+fig, ax = plt.subplots(1, 2, sharex = True, sharey = True, figsize = (10, 6))
+ax = ax.flatten()
+
+for i, j in enumerate(c1_processed.columns):
+    plot_acf(c1_processed[j], lags = 25, ax = ax[i], title = j, 
+             zero = False, color = 'k', alpha = None,)
+    ax[i].axhline(y = 1/np.exp(1), ls = '--', color = 'k', 
+                  alpha = 0.8, label = 'threshold')
+    ax[i].grid('--', alpha = 0.4, color = 'grey')
+    ax[i].legend(loc = 'lower right')
+    ax[i].set_title(j, fontsize=8)
+    
+fig.supylabel('Correlation Coefficient')
+fig.supxlabel('Time Lags')
+fig.suptitle('Auto Correlation Function')
+plt.tight_layout()
+plt.show()
+
+fig, ax = plt.subplots(1, 2, sharex = True, sharey = True, figsize = (10, 6))
+ax = ax.flatten()
+
+for i, j in enumerate(c2_processed.columns):
+    plot_acf(c2_processed[j], lags = 25, ax = ax[i], title = j, 
+             zero = False, color = 'k', alpha = None,)
+    ax[i].axhline(y = 1/np.exp(1), ls = '--', color = 'k', 
+                  alpha = 0.8, label = 'threshold')
+    ax[i].grid('--', alpha = 0.4, color = 'grey')
+    ax[i].legend(loc = 'lower right')
+    ax[i].set_title(j, fontsize=8)
+    
+fig.supylabel('Correlation Coefficient')
+fig.supxlabel('Time Lags')
+fig.suptitle('Auto Correlation Function')
+plt.tight_layout()
+plt.show()
+
+fig, ax = plt.subplots(1, 2, sharex = True, figsize = (12, 6))
+ax = ax.flatten()
+
+for i, j in enumerate(c1_processed.columns):
+    
+    mutual_info = tdmi.tdmi(c1_processed[j], 9, 4)
+    ax[i].plot(np.arange(1,10,1), mutual_info, 'o-', )
+    ax[i].grid('--', alpha = 0.4, color = 'grey')
+    ax[i].set_title(j, fontsize=11)
+    
+fig.supylabel('Mutual Information')
+fig.supxlabel('Time Lags')
+fig.suptitle('Average Mutual Information')
+plt.tight_layout()
+plt.show()
+
+fig, ax = plt.subplots(1, 2, sharex = True, figsize = (12, 6))
+ax = ax.flatten()
+
+for i, j in enumerate(c2_processed.columns):
+    
+    mutual_info = tdmi.tdmi(c2_processed[j], 9, 4)
+    ax[i].plot(np.arange(1,10,1), mutual_info, 'o-', )
+    ax[i].grid('--', alpha = 0.4, color = 'grey')
+    ax[i].set_title(j, fontsize=11)
+    
+fig.supylabel('Mutual Information')
+fig.supxlabel('Time Lags')
+fig.suptitle('Average Mutual Information')
+plt.tight_layout()
+plt.show()
+
+tau_c1 = [4, 4]
+tau_c2 = [4, 4]
+# 2 x 4 Cao's FNN
+
+fig, ax = plt.subplots(1, 2, sharex = True, figsize = (12, 6))
+ax = ax.flatten()
+max_E = 11
+
+for i, j in enumerate(c1_processed.columns):
+    
+    opt_E = []
+    for e in np.arange(1, max_E):
+
+        r = afn.afn(c1_processed[j], e, tau_c1[i], 'euclidean', 1, None)
+        opt_E.append(np.asarray(r).T)
+        
+    E1 = [opt_E[i][0] / opt_E[i-1][0] for i in range(1, len(opt_E))]
+    ax[i].plot(np.arange(1, max_E-1), E1, 'o-')
+    # ax[i].axhline(y = 0.9, ls = '--', label = 'threshold', color = 'grey')
+    ax[i].grid('--', alpha = 0.4, color = 'grey')
+    ax[i].set_title(j, fontsize=11)
+    
+fig.supylabel('E1 Score')
+fig.supxlabel('No. of Embedding Dimension')
+fig.suptitle("Cao's FNN for choosing optimal embedding dimension")
+plt.tight_layout()
+plt.show()
+
+fig, ax = plt.subplots(1, 2, sharex = True, figsize = (12, 6))
+ax = ax.flatten()
+max_E = 11
+
+for i, j in enumerate(c2_processed.columns):
+    
+    opt_E = []
+    for e in np.arange(1, max_E):
+
+        r = afn.afn(c2_processed[j], e, tau_c2[i], 'euclidean', 1, None)
+        opt_E.append(np.asarray(r).T)
+        
+    E1 = [opt_E[i][0] / opt_E[i-1][0] for i in range(1, len(opt_E))]
+    ax[i].plot(np.arange(1, max_E-1), E1, 'o-')
+    # ax[i].axhline(y = 0.9, ls = '--', label = 'threshold', color = 'grey')
+    ax[i].grid('--', alpha = 0.4, color = 'grey')
+    ax[i].set_title(j, fontsize=11)
+    
+fig.supylabel('E1 Score')
+fig.supxlabel('No. of Embedding Dimension')
+fig.suptitle("Cao's FNN for choosing optimal embedding dimension")
+plt.tight_layout()
+plt.show()
+
+E_c1 = [4, 4]
+E_c2 = [4, 4]
+
+# 2 x 4 shadow manifold
+
+fig, ax = plt.subplots(1, 2, subplot_kw = dict(projection = '3d'), figsize = (12, 6))
+ax = ax.flatten()
+
+for i, j in enumerate(c1_processed.columns): 
+    
+    M = mv.build_shadow(c1_processed[j], E_c2[i], tau_c1[i])
+    ax[i].plot(M[:,0], M[:,1], M[:,2], lw = 1.2)
+    ax[i].set_title(j, size = 9)
+    
+fig, ax = plt.subplots(1, 2, subplot_kw = dict(projection = '3d'), figsize = (12, 6))
+ax = ax.flatten()
+
+for i, j in enumerate(c2_processed.columns): 
+    
+    M = mv.build_shadow(c2_processed[j], E_c2[i], tau_c2[i])
+    ax[i].plot(M[:,0], M[:,1], M[:,2], lw = 1.2)
+    ax[i].set_title(j, size = 9)
+    
+# %% Inferring Causal Relationship
+
+titles = full_df.columns
+
+# 1) Temperature
+
+L_ranges = [np.arange(28, 90, 5), np.arange(28, 90, 5),
+           np.arange(28, 90, 5), np.arange(28, 90, 5), 
+           np.arange(38, 90, 5), np.arange(33, 90, 5),
+           np.arange(33, 90, 5), np.arange(28, 90, 5),
+           np.arange(28, 90, 5), np.arange(38, 90, 5)]
+
+fig, ax = plt.subplots(2, 5, figsize = (18, 8))
+ax = ax.flatten()
+
+figs = []
+for i in range(10):
+    fig_ax = ccm_result_1(CCM.CCM, full_df.iloc[:,i].values, c1_processed['Temperature'], L_ranges[i], 
+                          tau_c1[0], tau_all[i], E_c1[0], E_all[i])
+    fig_ax.set_title(titles[i])
+    fig_ax.grid('--', c='grey', alpha=0.4)
+
+    figs.append(fig_ax)
+
+plt.show()
+
+fig, ax = plt.subplots(2, 5, figsize=(20, 8))
+ax = ax.flatten()
+
+for i in range(10):
+
+    source_ax = figs[i]
+
+    for line in source_ax.lines:
+        ax[i].plot(
+            line.get_xdata(),
+            line.get_ydata(),
+            label=line.get_label(),
+            color=line.get_color(),
+            linestyle=line.get_linestyle(),
+            linewidth=line.get_linewidth(),
+            marker=line.get_marker())
+
+    ax[i].set_title(source_ax.get_title(loc='center'))
+    ax[i].set_xlabel(source_ax.get_xlabel())
+    ax[i].set_ylabel(source_ax.get_ylabel())
+    ax[i].grid('--', c='grey', alpha=0.4)
+
+    if len(source_ax.get_legend_handles_labels()[0]) > 0:
+
+        ax[i].legend()
+
+plt.tight_layout()
+plt.show()
+
+# 2. Relative Humidity
+
+L_ranges = [np.arange(28, 90, 5), np.arange(28, 90, 5),
+           np.arange(28, 90, 5), np.arange(28, 90, 5), 
+           np.arange(38, 90, 5), np.arange(33, 90, 5),
+           np.arange(33, 90, 5), np.arange(28, 90, 5),
+           np.arange(28, 90, 5), np.arange(38, 90, 5)]
+
+fig, ax = plt.subplots(2, 5, figsize = (18, 8))
+ax = ax.flatten()
+
+figs = []
+for i in range(10):
+    fig_ax = ccm_result_1(CCM.CCM, full_df.iloc[:,i].values, c1_processed['RH'], L_ranges[i], 
+                          tau_c1[1], tau_all[i], E_c1[1], E_all[i])
+    fig_ax.set_title(titles[i])
+    fig_ax.grid('--', c='grey', alpha=0.4)
+
+    figs.append(fig_ax)
+
+plt.show()
+
+fig, ax = plt.subplots(2, 5, figsize=(20, 8))
+ax = ax.flatten()
+
+for i in range(10):
+
+    source_ax = figs[i]
+
+    for line in source_ax.lines:
+        ax[i].plot(
+            line.get_xdata(),
+            line.get_ydata(),
+            label=line.get_label(),
+            color=line.get_color(),
+            linestyle=line.get_linestyle(),
+            linewidth=line.get_linewidth(),
+            marker=line.get_marker())
+
+    ax[i].set_title(source_ax.get_title(loc='center'))
+    ax[i].set_xlabel(source_ax.get_xlabel())
+    ax[i].set_ylabel(source_ax.get_ylabel())
+    ax[i].grid('--', c='grey', alpha=0.4)
+
+    if len(source_ax.get_legend_handles_labels()[0]) > 0:
+
+        ax[i].legend()
+
+plt.tight_layout()
+plt.show()
+
+# 3. Wind Speed
+
+L_ranges = [np.arange(28, 90, 5), np.arange(28, 90, 5),
+           np.arange(28, 90, 5), np.arange(28, 90, 5), 
+           np.arange(38, 90, 5), np.arange(33, 90, 5),
+           np.arange(33, 90, 5), np.arange(28, 90, 5),
+           np.arange(28, 90, 5), np.arange(38, 90, 5)]
+
+fig, ax = plt.subplots(2, 5, figsize = (18, 8))
+ax = ax.flatten()
+
+figs = []
+for i in range(10):
+    fig_ax = ccm_result_1(CCM.CCM, full_df.iloc[:,i].values, c2_processed['Windspeed'], L_ranges[i], 
+                          tau_c2[0], tau_all[i], E_c2[0], E_all[i])
+    fig_ax.set_title(titles[i])
+    fig_ax.grid('--', c='grey', alpha=0.4)
+
+    figs.append(fig_ax)
+
+plt.show()
+
+fig, ax = plt.subplots(2, 5, figsize=(20, 8))
+ax = ax.flatten()
+
+for i in range(10):
+
+    source_ax = figs[i]
+
+    for line in source_ax.lines:
+        ax[i].plot(
+            line.get_xdata(),
+            line.get_ydata(),
+            label=line.get_label(),
+            color=line.get_color(),
+            linestyle=line.get_linestyle(),
+            linewidth=line.get_linewidth(),
+            marker=line.get_marker())
+
+    ax[i].set_title(source_ax.get_title(loc='center'))
+    ax[i].set_xlabel(source_ax.get_xlabel())
+    ax[i].set_ylabel(source_ax.get_ylabel())
+    ax[i].grid('--', c='grey', alpha=0.4)
+
+    if len(source_ax.get_legend_handles_labels()[0]) > 0:
+
+        ax[i].legend()
+
+plt.tight_layout()
+plt.show()
+
+# 4. Precipitation
+
+L_ranges = [np.arange(28, 90, 5), np.arange(28, 90, 5),
+           np.arange(28, 90, 5), np.arange(28, 90, 5), 
+           np.arange(38, 90, 5), np.arange(33, 90, 5),
+           np.arange(33, 90, 5), np.arange(28, 90, 5),
+           np.arange(28, 90, 5), np.arange(38, 90, 5)]
+
+fig, ax = plt.subplots(2, 5, figsize = (18, 8))
+ax = ax.flatten()
+
+figs = []
+for i in range(10):
+    fig_ax = ccm_result_1(CCM.CCM, full_df.iloc[:,i].values, c2_processed['Precipitation'], L_ranges[i], 
+                          tau_c2[1], tau_all[i], E_c2[1], E_all[i])
+    fig_ax.set_title(titles[i])
+    fig_ax.grid('--', c='grey', alpha=0.4)
+
+    figs.append(fig_ax)
+
+plt.show()
+
+fig, ax = plt.subplots(2, 5, figsize=(20, 8))
+ax = ax.flatten()
+
+for i in range(10):
+
+    source_ax = figs[i]
+
+    for line in source_ax.lines:
+        ax[i].plot(
+            line.get_xdata(),
+            line.get_ydata(),
+            label=line.get_label(),
+            color=line.get_color(),
+            linestyle=line.get_linestyle(),
+            linewidth=line.get_linewidth(),
+            marker=line.get_marker())
+
+    ax[i].set_title(source_ax.get_title(loc='center'))
+    ax[i].set_xlabel(source_ax.get_xlabel())
+    ax[i].set_ylabel(source_ax.get_ylabel())
+    ax[i].grid('--', c='grey', alpha=0.4)
+
+    if len(source_ax.get_legend_handles_labels()[0]) > 0:
+
+        ax[i].legend()
+
+plt.tight_layout()
+plt.show()
+
+# %% 
