@@ -102,7 +102,7 @@ gb_as_res = gb_as_table.groupby(['YY-MM', 'Active Substance'])['Positive'].agg(r
 gb_as_res['Resistance (%)'] = (gb_as_res['resistance'] / gb_as_res['tested']) * 100
 
 gb_as_res_mdr = gb_as_table.groupby(['YY-MM', 'labIsolCode'])['Positive'].sum().reset_index(name = 'No of Positives')
-gb_as_res_mdr['more_than_one'] = (gb_as_res_mdr['No of Positives'] > 1).astype(int)
+gb_as_res_mdr['more_than_one'] = (gb_as_res_mdr['No of Positives'] >= 1).astype(int)
 gb_as_res_mdr['more_than_three'] = (gb_as_res_mdr['No of Positives'] > 3).astype(int)
 
 gb_as_res_mdr_res = gb_as_res_mdr.groupby('YY-MM').agg(isolates = ('labIsolCode', 'nunique'),
