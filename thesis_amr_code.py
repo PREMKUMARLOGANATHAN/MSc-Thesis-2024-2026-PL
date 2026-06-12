@@ -70,6 +70,8 @@ ws = full_ws['Mean_Wind'][2:]
 
 # %% AMR Data preprocessing pt.1
 
+# Grouped in terms of Animal Type, and Active Substance
+
 columns_of_interest = ['labIsolCode', 'repCountry', 'matrix', 'sampY', 'sampM', 'sampD', 'Active Substance', 'MIC', 'cutoffValue']
 amr_data = amr_df[columns_of_interest]
 
@@ -88,7 +90,116 @@ full_data = full_data.drop(columns = 'Positive')
 full_data['Resistant'] = resistant_counts['Positive'] / counts['labIsolCode']
 
 amr_table = pd.pivot_table(data = full_data, columns = ['Animal Type', 'Active Substance'], index = 'YY-MM', values = 'Resistant')
-amr_table
+amr_table = (amr_table.reindex(period_range).reset_index().rename(columns = {'index': 'YY-MM'}))
+amr_table = amr_table.set_index('YY-MM')
+
+# Grouped only if Active Substance
+
+gb_as = ['YY-MM', 'labIsolCode', 'Active Substance', 'Positive']
+gb_as_table = amr_data[gb_as]
+
+gb_as_res = gb_as_table.groupby(['YY-MM', 'Active Substance'])['Positive'].agg(resistance = 'sum', tested = 'count').reset_index()
+gb_as_res['Resistance (%)'] = (gb_as_res['resistance'] / gb_as_res['tested']) * 100
+
+gb_as_res_mdr = gb_as_table.groupby(['YY-MM', 'labIsolCode'])['Positive'].sum().reset_index(name = 'No of Positives')
+gb_as_res_mdr['more_than_one'] = (gb_as_res_mdr['No of Positives'] > 1).astype(int)
+gb_as_res_mdr['more_than_three'] = (gb_as_res_mdr['No of Positives'] > 3).astype(int)
+
+gb_as_res_mdr_res = gb_as_res_mdr.groupby('YY-MM').agg(isolates = ('labIsolCode', 'nunique'),
+            total_more_than_one =('more_than_one', 'sum'),
+           total_more_than_three =('more_than_three', 'sum')).reset_index()
+
+gb_as_res_mdr_res['more_than_one (%)'] = gb_as_res_mdr_res['total_more_than_one'] / gb_as_res_mdr_res['isolates'] * 100
+gb_as_res_mdr_res['more_than_three (%)'] = gb_as_res_mdr_res['total_more_than_three'] / gb_as_res_mdr_res['isolates'] * 100
+
+# MDR plots
+
+x = gb_as_res_mdr['No of Positives']
+plt.figure(figsize=(8,5))
+plt.hist(x[x <= 1], bins=[-0.5, 0.5, 1.5], color='blue',
+         label='0-1 positives')
+plt.hist(x[(x > 1) & (x <= 3)], bins=range(2, 5),
+         color='orange', label='2-3 positives')
+plt.hist(x[x > 3], bins=range(4, int(x.max()) + 2),
+         color='red', label='>3 positives')
+plt.xlabel('No of Positives')
+plt.ylabel('Count')
+plt.legend()
+plt.grid('--', c = 'grey', alpha = 0.3)
+plt.title('Histogram of Resistant Antibiotic Counts Across Isolates')
+plt.show()
+
+gb_as_res_mdr['category'] = pd.cut(
+    gb_as_res_mdr['No of Positives'],
+    bins=[-1, 1, 3, float('inf')],
+    labels=['0-1', '2-3', '>3'])
+
+counts = gb_as_res_mdr['category'].value_counts().sort_index()
+
+colors = ['blue', 'orange', 'red']
+ax = counts.plot(kind='bar', color=colors, figsize=(6,4))
+for p in ax.patches:
+    ax.annotate(f'{int(p.get_height())}', (p.get_x() + p.get_width()/2, p.get_height()),ha='center',va='bottom')
+ax.grid('--', c = 'grey', alpha = 0.3)
+
+plt.xlabel('Resistant to Number of Antibiotics')
+plt.ylabel('Number of Isolates')
+plt.title('Distribution Positive Isolates resistant Counts')
+plt.show()
+
+# All 3 visulaisation plot
+
+# 1. Mean resistance across all antibiotics per month
+monthly_mean_res = gb_as_res.groupby('YY-MM')['Resistance (%)'].mean().reset_index(name='Mean Resistance (%)')
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+ax.plot(monthly_mean_res['YY-MM'], monthly_mean_res['Mean Resistance (%)'], 'o-', label='Average AMR')
+ax.plot(gb_as_res_mdr_res['YY-MM'], gb_as_res_mdr_res['more_than_one (%)'], 's-', label='MDR > 1')
+ax.plot(gb_as_res_mdr_res['YY-MM'], gb_as_res_mdr_res['more_than_three (%)'], '^-', label='MDR > 3')
+
+ax.set_xmargin(0)
+ax.tick_params('x', rotation = 90)
+ax.set_ylabel('Resistant Percentage (%)')
+ax.set_xlabel('Time[Month]')
+ax.set_title('AMR trend in Food Producing Animals in Belgium (2017-2024)')
+ax.legend()
+ax.grid('--', color = 'grey', alpha=0.3)
+plt.tight_layout()
+plt.show()
+
+# 2. Mean resistance across all antibiotics per months with all month
+
+monthly_mean_res = gb_as_res.groupby('YY-MM')['Resistance (%)'].mean().reset_index(name='Mean Resistance (%)')
+monthly_mean_res = (monthly_mean_res.set_index('YY-MM').reindex(period_range).reset_index().rename(columns = {'index': 'YY-MM'}))
+gb_as_res_mdr_res = (gb_as_res_mdr_res.set_index('YY-MM').reindex(period_range).reset_index().rename(columns = {'index': 'YY-MM'}))
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+ax.plot(monthly_mean_res['YY-MM'], monthly_mean_res['Mean Resistance (%)'], 'o-', label='Average AMR')
+ax.plot(gb_as_res_mdr_res['YY-MM'], gb_as_res_mdr_res['more_than_one (%)'], 's-', label='MDR > 1')
+ax.plot(gb_as_res_mdr_res['YY-MM'], gb_as_res_mdr_res['more_than_three (%)'], '^-', label='MDR > 3')
+
+ax.set_xmargin(0)
+ax.tick_params('x', rotation = 90)
+ax.set_ylabel('Resistant Percentage (%)')
+ax.set_xlabel('Time[Month]')
+ax.set_title('AMR trend in Food Producing Animals in Belgium (2017-2024)')
+ax.legend()
+ax.grid('--', color = 'grey', alpha=0.3)
+plt.tight_layout()
+plt.show()
+
+# 3. Mean resistance across all antibiotics
+
+pivot = gb_as_res.pivot(
+    index='YY-MM',
+    columns='Active Substance',
+    values='Resistance (%)')
+
+fig, ax = plt.subplots(figsize=(10, 6))
+ax.plot(pivot.index, pivot, alpha = 0.2, c = 'grey')
+ax.plot(monthly_mean_res['YY-MM'], monthly_mean_res['Mean Resistance (%)'], 'o-', label='Average AMR')
 
 '''
 amr_data_grouped['Counts'] = [1] * len(amr_data_grouped)
@@ -137,7 +248,7 @@ amr_data_grouped_with_counts['Resistance'] = (amr_data_grouped_with_counts['Posi
 
 table_for_grouped = pd.pivot_table(data = amr_data_grouped_with_counts, index = 'YY-MM', columns = ['Animal Type', 'Active Substance'], values = 'Resistance')
 table_for_grouped = (table_for_grouped.reindex(period_range).reset_index().rename(columns = {'index': 'YY-MM'}))
-'''
+
 def has_consecutive_nans(series, threshold): # Thanks to GenAI
     
     nan_vals = series.isna()
@@ -165,4 +276,4 @@ for i, j in enumerate(amr_df_cleaned.columns):
     ax[i].tick_params('x', rotation = 90)
 
 ABs_with_100_and_0_resistance = ['Cefotaxime', 'Meropeneme', 'Ceftazidime', 'Colistin', 'Tigecycline'] 
-amr_df_cleaned_2 = amr_df_cleaned.loc[:, ~amr_df_cleaned.columns.get_level_values(1).isin(ABs_with_100_and_0_resistance)]
+amr_df_cleaned_2 = amr_df_cleaned.loc[:, ~amr_df_cleaned.columns.get_level_values(1).isin(ABs_with_100_and_0_resistance)]'''
