@@ -28,6 +28,7 @@ from sklearn.cluster import KMeans, AgglomerativeClustering
 from sklearn.manifold import TSNE
 from sklearn.metrics import silhouette_score, calinski_harabasz_score
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.tsa.seasonal import STL
 from tqdm import tqdm
 import warnings
 warnings.filterwarnings('ignore')
@@ -72,8 +73,9 @@ ws = full_ws['Mean_Wind'][2:]
 
 # Grouped in terms of Animal Type, and Active Substance
 
-columns_of_interest = ['labIsolCode', 'repCountry', 'matrix', 'sampY', 'sampM', 'sampD', 'Active Substance', 'MIC', 'cutoffValue']
+columns_of_interest = ['labIsolCode', 'matrix', 'sampY', 'sampM', 'Active Substance', 'MIC', 'cutoffValue']
 amr_data = amr_df[columns_of_interest]
+amr_data = amr_data[amr_data['Active Substance'] != 'Amikacin']
 
 matrix_map = {'PRI 035': 'Pigs', 'PRI 036': 'Calves', 'PRI 019 Broilers': 'Poultry', 'PRI 019 Turkeys': 'Poultry'}
 amr_data['Animal Type'] = amr_data['matrix'].map(matrix_map)
@@ -82,16 +84,13 @@ amr_data['YY-MM'] = amr_data['sampY'].astype(str) + '-' + amr_data['sampM'].asty
 amr_data['YY-MM'] = pd.to_datetime(amr_data['YY-MM'], format = '%Y-%m')
 period_range = pd.date_range(start = amr_data['YY-MM'].min(),
                              end = amr_data['YY-MM'].max(), freq = 'MS')
-counts = amr_data.groupby(['YY-MM', 'Animal Type', 'Active Substance'])[['labIsolCode']].nunique().reset_index()
-resistant_counts = amr_data.groupby(['YY-MM', 'Animal Type', 'Active Substance'])[['Positive']].sum().reset_index()
 
-full_data = resistant_counts.copy()
-full_data = full_data.drop(columns = 'Positive')
-full_data['Resistant'] = resistant_counts['Positive'] / counts['labIsolCode']
+# gb_animal = ['YY-MM', 'Animal Type','labIsolCode', 'Active Substance', 'Positive']
+# gb_animal_table = amr_data[gb_animal]
+# gb_animal_res = gb_animal_table.groupby(['YY-MM', 'Animal Type', 'Active Substance'])['Positive'].agg(resistance = 'sum', tested = 'count').reset_index()
+# gb_animal_res['Resistance (%)'] = (gb_animal_res['resistance'] / gb_animal_res['tested'])
+# gb_animal_mdr = gb_animal_table.groupby(['YY-MM', 'labIsolCode', 'Animal Type'])['Positive'].sum().reset_index(name = 'No of Positives')
 
-amr_table = pd.pivot_table(data = full_data, columns = ['Animal Type', 'Active Substance'], index = 'YY-MM', values = 'Resistant')
-amr_table = (amr_table.reindex(period_range).reset_index().rename(columns = {'index': 'YY-MM'}))
-amr_table = amr_table.set_index('YY-MM')
 
 # Grouped only if Active Substance
 
@@ -102,61 +101,29 @@ gb_as_res = gb_as_table.groupby(['YY-MM', 'Active Substance'])['Positive'].agg(r
 gb_as_res['Resistance (%)'] = (gb_as_res['resistance'] / gb_as_res['tested']) * 100
 
 gb_as_res_mdr = gb_as_table.groupby(['YY-MM', 'labIsolCode'])['Positive'].sum().reset_index(name = 'No of Positives')
-gb_as_res_mdr['more_than_one'] = (gb_as_res_mdr['No of Positives'] >= 1).astype(int)
-gb_as_res_mdr['more_than_three'] = (gb_as_res_mdr['No of Positives'] > 3).astype(int)
+gb_as_res_mdr['atleast_one'] = (gb_as_res_mdr['No of Positives'] >= 1).astype(int)
+gb_as_res_mdr['atleast_two'] = (gb_as_res_mdr['No of Positives'] >= 2).astype(int)
+gb_as_res_mdr['atleast_three'] = (gb_as_res_mdr['No of Positives'] >= 3).astype(int)
 
 gb_as_res_mdr_res = gb_as_res_mdr.groupby('YY-MM').agg(isolates = ('labIsolCode', 'nunique'),
-            total_more_than_one =('more_than_one', 'sum'),
-           total_more_than_three =('more_than_three', 'sum')).reset_index()
+            total_atleast_one = ('atleast_one', 'sum'), total_atleast_two = ('atleast_two', 'sum'), 
+           total_atleast_three = ('atleast_three', 'sum')).reset_index()
 
-gb_as_res_mdr_res['more_than_one (%)'] = gb_as_res_mdr_res['total_more_than_one'] / gb_as_res_mdr_res['isolates'] * 100
-gb_as_res_mdr_res['more_than_three (%)'] = gb_as_res_mdr_res['total_more_than_three'] / gb_as_res_mdr_res['isolates'] * 100
+gb_as_res_mdr_res['atleast_one (%)'] = gb_as_res_mdr_res['total_atleast_one'] / gb_as_res_mdr_res['isolates'] * 100
+gb_as_res_mdr_res['atleast_two (%)'] = gb_as_res_mdr_res['total_atleast_two'] / gb_as_res_mdr_res['isolates'] * 100
+gb_as_res_mdr_res['atleast_three (%)'] = gb_as_res_mdr_res['total_atleast_three'] / gb_as_res_mdr_res['isolates'] * 100
+gb_as_res_mdr_res = gb_as_res_mdr_res.set_index('YY-MM').reindex(period_range).reset_index().rename(columns = {'index' : 'YY-MM'})
 
-# MDR plots
-
-x = gb_as_res_mdr['No of Positives']
-plt.figure(figsize=(8,5))
-plt.hist(x[x <= 1], bins=[-0.5, 0.5, 1.5], color='blue',
-         label='0-1 positives')
-plt.hist(x[(x > 1) & (x <= 3)], bins=range(2, 5),
-         color='orange', label='2-3 positives')
-plt.hist(x[x > 3], bins=range(4, int(x.max()) + 2),
-         color='red', label='>3 positives')
-plt.xlabel('No of Positives')
-plt.ylabel('Count')
-plt.legend()
-plt.grid('--', c = 'grey', alpha = 0.3)
-plt.title('Histogram of Resistant Antibiotic Counts Across Isolates')
-plt.show()
-
-gb_as_res_mdr['category'] = pd.cut(
-    gb_as_res_mdr['No of Positives'],
-    bins=[-1, 1, 3, float('inf')],
-    labels=['0-1', '2-3', '>3'])
-
-counts = gb_as_res_mdr['category'].value_counts().sort_index()
-
-colors = ['blue', 'orange', 'red']
-ax = counts.plot(kind='bar', color=colors, figsize=(6,4))
-for p in ax.patches:
-    ax.annotate(f'{int(p.get_height())}', (p.get_x() + p.get_width()/2, p.get_height()),ha='center',va='bottom')
-ax.grid('--', c = 'grey', alpha = 0.3)
-
-plt.xlabel('Resistant to Number of Antibiotics')
-plt.ylabel('Number of Isolates')
-plt.title('Distribution Positive Isolates resistant Counts')
-plt.show()
+antibiotics_table = pd.pivot_table(data = gb_as_res, values = 'Resistance (%)', index = 'YY-MM', columns = 'Active Substance')
+antibiotics_table = antibiotics_table.reindex(period_range)
 
 # All 3 visulaisation plot
 
-# 1. Mean resistance across all antibiotics per month
-monthly_mean_res = gb_as_res.groupby('YY-MM')['Resistance (%)'].mean().reset_index(name='Mean Resistance (%)')
-
 fig, ax = plt.subplots(figsize=(10, 6))
 
-ax.plot(monthly_mean_res['YY-MM'], monthly_mean_res['Mean Resistance (%)'], 'o-', label='Average AMR')
-ax.plot(gb_as_res_mdr_res['YY-MM'], gb_as_res_mdr_res['more_than_one (%)'], 's-', label='MDR > 1')
-ax.plot(gb_as_res_mdr_res['YY-MM'], gb_as_res_mdr_res['more_than_three (%)'], '^-', label='MDR > 3')
+ax.plot(gb_as_res_mdr_res['YY-MM'], gb_as_res_mdr_res['atleast_one (%)'], 's-', label='MDR > 1')
+ax.plot(gb_as_res_mdr_res['YY-MM'], gb_as_res_mdr_res['atleast_two (%)'], 's-', label='MDR > 2')
+ax.plot(gb_as_res_mdr_res['YY-MM'], gb_as_res_mdr_res['atleast_three (%)'], '^-', label='MDR > 3')
 
 ax.set_xmargin(0)
 ax.tick_params('x', rotation = 90)
@@ -167,87 +134,6 @@ ax.legend()
 ax.grid('--', color = 'grey', alpha=0.3)
 plt.tight_layout()
 plt.show()
-
-# 2. Mean resistance across all antibiotics per months with all month
-
-monthly_mean_res = gb_as_res.groupby('YY-MM')['Resistance (%)'].mean().reset_index(name='Mean Resistance (%)')
-monthly_mean_res = (monthly_mean_res.set_index('YY-MM').reindex(period_range).reset_index().rename(columns = {'index': 'YY-MM'}))
-gb_as_res_mdr_res = (gb_as_res_mdr_res.set_index('YY-MM').reindex(period_range).reset_index().rename(columns = {'index': 'YY-MM'}))
-
-fig, ax = plt.subplots(figsize=(10, 6))
-
-ax.plot(monthly_mean_res['YY-MM'], monthly_mean_res['Mean Resistance (%)'], 'o-', label='Average AMR')
-ax.plot(gb_as_res_mdr_res['YY-MM'], gb_as_res_mdr_res['more_than_one (%)'], 's-', label='MDR > 1')
-ax.plot(gb_as_res_mdr_res['YY-MM'], gb_as_res_mdr_res['more_than_three (%)'], '^-', label='MDR > 3')
-
-ax.set_xmargin(0)
-ax.tick_params('x', rotation = 90)
-ax.set_ylabel('Resistant Percentage (%)')
-ax.set_xlabel('Time[Month]')
-ax.set_title('AMR trend in Food Producing Animals in Belgium (2017-2024)')
-ax.legend()
-ax.grid('--', color = 'grey', alpha=0.3)
-plt.tight_layout()
-plt.show()
-
-# 3. Mean resistance across all antibiotics
-
-pivot = gb_as_res.pivot(
-    index='YY-MM',
-    columns='Active Substance',
-    values='Resistance (%)')
-
-fig, ax = plt.subplots(figsize=(10, 6))
-ax.plot(pivot.index, pivot, alpha = 0.2, c = 'grey')
-ax.plot(monthly_mean_res['YY-MM'], monthly_mean_res['Mean Resistance (%)'], 'o-', label='Average AMR')
-
-'''
-amr_data_grouped['Counts'] = [1] * len(amr_data_grouped)
-amr_data_grouped_with_counts = amr_data_grouped.groupby(['YY-MM', 'Animal Type', 'Active Substance'])[['Counts', 'Positive']].sum().reset_index()
-
-amr_data_pigs = amr_data_grouped_with_counts[amr_data_grouped_with_counts['Animal Type'] == 'Pigs']
-amr_data_pigs_amp = amr_data_pigs[amr_data_pigs['Active Substance'] == 'Gentamicin']
-
-amr_data_pigs_amp = (amr_data_pigs_amp.set_index('YY-MM').reindex(period_range).reset_index().rename(columns = {'index': 'YY-MM'}))
-
-fig, ax = plt.subplots(figsize = (8, 6))
-ax.plot(amr_data_pigs_amp['YY-MM'], amr_data_pigs_amp['Counts'], 'o-', color = 'grey', label = 'Tested')
-ax.plot(amr_data_pigs_amp['YY-MM'], (amr_data_pigs_amp['Positive']/amr_data_pigs_amp['Counts']) * 100, 'o-', color = 'lightskyblue', label = 'Resistant')
-ax.legend()
-ax.set_xlabel('Time[Months]')
-ax.set_ylabel('No of tested units \n& Resistance (%)')
-ax.set_title('Ampicillin Resistant E. coli occurance in Pigs', loc = 'left')
-plt.tight_layout()
-plt.show()
-
-amr_data_pigs_amp_q = (amr_data_pigs_amp.set_index('YY-MM')
-    .resample('QE')[['Counts', 'Positive']].sum().reset_index())
-fig, ax = plt.subplots(figsize = (8, 6))
-ax.plot(amr_data_pigs_amp_q['YY-MM'], amr_data_pigs_amp_q['Counts'], 'o-', color = 'grey', label = 'Tested')
-ax.plot(amr_data_pigs_amp_q['YY-MM'], (amr_data_pigs_amp_q['Positive']/amr_data_pigs_amp_q['Counts']) * 100, 'o-', color = 'lightskyblue', label = 'Resistant')
-ax.legend()
-ax.set_xlabel('Time[Quarters]')
-ax.set_ylabel('No of tested units \n& Resistance (%)')
-ax.set_title('Ampicillin Resistant E. coli occurance in Pigs', loc = 'left')
-plt.tight_layout()
-plt.show()
-
-amr_data_pigs_amp_y = (amr_data_pigs_amp.set_index('YY-MM')
-    .resample('YS')[['Counts', 'Positive']].sum().reset_index())
-fig, ax = plt.subplots(figsize = (8, 6))
-# ax.plot(amr_data_pigs_amp_y['YY-MM'], amr_data_pigs_amp_y['Counts'], 'o-', color = 'grey', label = 'Tested')
-ax.plot(amr_data_pigs_amp_y['YY-MM'], (amr_data_pigs_amp_y['Positive']/amr_data_pigs_amp_y['Counts']) * 100, 'o-', color = 'lightskyblue', label = 'Resistant')
-ax.legend()
-ax.set_xlabel('Time[Years]')
-ax.set_ylabel('No of tested units \n& Resistance (%)')
-ax.set_title('Ampicillin Resistant E. coli occurance in Pigs', loc = 'left')
-plt.tight_layout()
-plt.show()
-
-amr_data_grouped_with_counts['Resistance'] = (amr_data_grouped_with_counts['Positive'] / amr_data_grouped_with_counts['Counts']) * 100
-
-table_for_grouped = pd.pivot_table(data = amr_data_grouped_with_counts, index = 'YY-MM', columns = ['Animal Type', 'Active Substance'], values = 'Resistance')
-table_for_grouped = (table_for_grouped.reindex(period_range).reset_index().rename(columns = {'index': 'YY-MM'}))
 
 def has_consecutive_nans(series, threshold): # Thanks to GenAI
     
@@ -257,15 +143,16 @@ def has_consecutive_nans(series, threshold): # Thanks to GenAI
     
     return (streaks >= threshold).any()
 
-cols_to_drop = [col for col in res_table.columns if has_consecutive_nans(res_table[col], 5)]
-amr_df_cleaned = res_table.drop(columns = cols_to_drop)
-loss = ((res_table.shape[1] - amr_df_cleaned.shape[1]) / res_table.shape[1]) * 100
+cols_to_drop = [col for col in antibiotics_table.columns if has_consecutive_nans(antibiotics_table[col], 5)]
+amr_df_cleaned = antibiotics_table.drop(columns = cols_to_drop)
+loss = ((antibiotics_table.shape[1] - amr_df_cleaned.shape[1]) / antibiotics_table.shape[1]) * 100
 print(f'Loss: {np.round(loss, 2)}%')
 
-# amr_df_cleaned = amr_df_cleaned.set_index('YY-MM')
-# Plotting the figure to see if the inconsistency is continous
+amr_df_cleaned['Atleast One'] = gb_as_res_mdr_res['atleast_one (%)'].values
+amr_df_cleaned['Atleast Two'] = gb_as_res_mdr_res['atleast_two (%)'].values
+amr_df_cleaned['Atleast Three'] = gb_as_res_mdr_res['atleast_three (%)'].values
 
-fig, ax = plt.subplots(6, 7, figsize=(16, 12), sharex = True)
+fig, ax = plt.subplots(3, 6, figsize=(16, 12), sharex = True)
 ax = ax.flatten()
 
 for i, j in enumerate(amr_df_cleaned.columns):
@@ -275,5 +162,276 @@ for i, j in enumerate(amr_df_cleaned.columns):
     ax[i].set_xticks(amr_df_cleaned.index[::12])
     ax[i].tick_params('x', rotation = 90)
 
-ABs_with_100_and_0_resistance = ['Cefotaxime', 'Meropeneme', 'Ceftazidime', 'Colistin', 'Tigecycline'] 
-amr_df_cleaned_2 = amr_df_cleaned.loc[:, ~amr_df_cleaned.columns.get_level_values(1).isin(ABs_with_100_and_0_resistance)]'''
+ABs_with_100_and_0_resistance = ['Meropeneme', 'Colistin', 'Tigecycline'] 
+amr_df_cleaned_2 = amr_df_cleaned.drop(columns = ABs_with_100_and_0_resistance)
+
+amr_df_filled = preprocessing(amr_df_cleaned_2.interpolate())
+fig, ax = plt.subplots(3, 5, figsize=(16, 12), sharex = True)
+ax = ax.flatten()
+
+for i, j in enumerate(amr_df_filled.columns):
+    ax[i].plot(amr_df_filled.index, amr_df_filled[j], 'o-', label = j, markersize = 2)
+    ax[i].set_title(j, loc = 'left', size = 8)
+    ax[i].grid('--', c = 'grey', alpha = 0.3)
+    ax[i].set_xticks(amr_df_cleaned.index[::12])
+    ax[i].tick_params('x', rotation = 90)
+
+fig, ax = plt.subplots(3, 5, figsize = (16, 12), sharex = True)
+ax = ax.flatten()
+
+for i, j in enumerate(amr_df_filled.columns):
+    stl = STL(amr_df_filled[j], period = 13)
+    res = stl.fit()
+    ax[i].plot(res.trend)
+    ax[i].set_title(f'{j} - Trend', loc = 'left', size = 8)
+    ax[i].grid('--', c = 'grey', alpha = 0.3)
+    ax[i].tick_params('x', rotation = 90)
+    
+fig, ax = plt.subplots(3, 5, figsize = (16, 12), sharex = True)
+ax = ax.flatten()
+
+for i, j in enumerate(amr_df_filled.columns):
+    stl = STL(amr_df_filled[j], period = 13)
+    res = stl.fit()
+    ax[i].plot(res.seasonal)
+    ax[i].set_title(f'{j} - Seasonal Pattern', loc = 'left', size = 8)
+    ax[i].grid('--', c = 'grey', alpha = 0.3)
+    ax[i].tick_params('x', rotation = 90)
+    
+# Smoothening
+
+fig, ax = plt.subplots(3, 5, figsize=(16, 12), sharex = True)
+ax = ax.flatten()
+
+for i, j in enumerate(amr_df_filled.columns):
+    ax[i].plot(amr_df_filled.index, amr_df_filled[j], 'o-', label = 'Original', markersize = 2)
+    ax[i].plot(amr_df_filled.index, amr_df_filled[j].rolling(window = 3, center = True).mean(), 'o-', color = 'orange', label = 'Window = 3', markersize = 2)
+    ax[i].plot(amr_df_filled.index, amr_df_filled[j].rolling(window = 5, center = True).mean(), 'o-', color = 'red', label = 'Window = 5', markersize = 2, alpha = 0.7) 
+    ax[i].legend() if i == 0 else None
+    ax[i].set_title(j, loc = 'left', size = 8)
+    ax[i].grid('--', c = 'grey', alpha = 0.3)
+    ax[i].set_xticks(amr_df_cleaned.index[::12])
+    ax[i].tick_params('x', rotation = 90)
+
+# %% Clustering
+
+amr_df_processed_one = amr_df_filled.rolling(window = 3, center = True).mean().dropna()
+amr_df_processed_one = amr_df_processed_one.drop(columns = ['Atleast Two', 'Atleast Three'])
+k_vals = np.arange(2, 11, 1)
+sse = []
+shilloutte = []
+centers = []
+labels = []
+
+for i in k_vals:
+    kmeans = KMeans(n_clusters = i, random_state = 42, n_init = 20)
+    kmeans.fit(amr_df_processed_one.T)
+    labels.append(kmeans.labels_)
+    centers.append(kmeans.cluster_centers_)
+    sse.append(kmeans.inertia_)
+    shilloutte.append(silhouette_score(amr_df_processed_one.T, kmeans.labels_))
+
+plt.figure(figsize=(12,5))
+plt.subplot(1,2,1)
+plt.plot(k_vals, sse, 'o-')
+plt.xlabel('Number of Clusters', fontweight = 'bold')
+plt.ylabel('SSE (Inertia)', fontweight = 'bold')
+plt.title('Elbow Method', fontweight = 'bold')
+plt.grid()
+
+plt.subplot(1,2,2)
+plt.plot(k_vals, shilloutte, 'o-')
+plt.xlabel('Number of Clusters', fontweight = 'bold')
+plt.ylabel('Silhouette Score', fontweight = 'bold')
+plt.title('Silhouette Method', fontweight = 'bold')
+plt.grid()
+plt.savefig('Choosing Optimal Clusters for AMU.png', dpi = 600)
+plt.show()
+
+c = KMeans(n_clusters = 7, random_state = 42, n_init = 20).fit(amr_df_processed_one.T)
+c_l = c.labels_
+
+def coordinates_plot(x, color_label, *args):
+    
+    fig, ax = plt.subplots(figsize = (9,5))
+
+    for i in range(np.shape(x)[0]):
+
+        color = cm.tab10(c_l[i])
+        ax.plot(x[i], color = color, alpha = 0.5, linewidth = 2)
+
+    ax.set_xmargin(0)
+    ax.set_xlabel('Time [Month]')
+    ax.set_ylabel('Normalised Total Active Substance')
+    ax.legend()
+    ax.set_title(f'Coordinates Plot (optimal clusters = {np.max(c_l + 1)})', loc = 'left')
+    ax.grid()
+    plt.show()
+        
+coordinates_plot(amr_df_processed_one.T.values, c_l, )
+
+c_l = np.array(c_l)
+cols = amr_df_processed_one.columns
+colors = cm.tab10.colors
+
+fig, ax = plt.subplots(7, 1, figsize = (10, 12), sharex = True)
+ax = ax.flatten()
+cluster_means = {}
+for i, clust in enumerate(np.unique(c_l)):
+    
+    selected_cols = cols[c_l == clust]
+    data = amr_df_processed_one[selected_cols.values]
+    cluster_means[f'clust_{i}'] = np.mean(data, axis=1)
+
+    for col in data.columns:
+        ax[i].plot(data.index, data[col], alpha = 0.15, color = colors[i],)
+
+    ax[i].plot(data.index, np.mean(data, axis = 1), alpha = 0.9, color = colors[i], label = f'Cluster {i + 1} mean')
+    ax[i].set_xmargin(0)
+    ax[i].set_xticks(data.index[::6])
+    ax[i].tick_params(axis = 'x', rotation = 90)
+    ax[i].legend(loc = 'upper right')
+    ax[i].set_title(f'Cluster {i + 1}', loc = 'left', size = 8.5)
+    ax[i].grid()
+
+fig.supylabel('Total Active Substance (Normalised)')
+fig.supxlabel('Time [Month]')
+fig.suptitle('Antimicrobial Resistance in Food Producing Animals')
+plt.tight_layout()
+plt.show()
+
+tsne = TSNE(n_components = 2, perplexity = 6, random_state=42)
+X_new = tsne.fit_transform(amr_df_processed_one.T)
+print(f'KL divergence: {tsne.kl_divergence_:.4f}')
+
+X_tsne = pd.DataFrame(X_new, columns=['TSNE1', 'TSNE2'], index=cols)
+X_tsne['Cluster'] = c_l
+
+fig, ax = plt.subplots(figsize=(10, 8))
+
+for cluster in sorted(X_tsne['Cluster'].unique()):
+
+    data = X_tsne[X_tsne['Cluster'] == cluster]
+    ax.scatter(data['TSNE1'], data['TSNE2'], s=25,
+        color=colors[int(cluster) % len(colors)], label=f'Cluster {cluster}')
+    for idx, row in data.iterrows():
+        ax.text(row['TSNE1'] + 0.1, row['TSNE2'] + 0.1, idx, fontsize=8.5)
+
+ax.set_title('t-SNE projection of AMU in Food Producing \nAnimals in Belgium coloured by K-means clusters', fontsize=12, fontweight='bold')
+ax.set_xlabel('t-SNE Dimension 1')
+ax.set_ylabel('t-SNE Dimension 2')
+ax.grid(alpha=0.3)
+ax.legend(title='Cluster')
+
+# %% Climate Variables Smoothing
+
+Temperature = pd.DataFrame(temp.values).rolling(window = 5, center = True).mean().dropna()
+Windspeed = pd.DataFrame(ws.values).rolling(window = 3, center = True).mean().dropna()
+RH = pd.DataFrame(rh.values).rolling(window = 5, center = True).mean().dropna()
+Precipitation = pd.DataFrame(prec.values).rolling(window = 3, center = True).mean().dropna()
+
+# %% Checking Convergent Cross Mapping for 14 ABs + 3 MDR
+
+#df for testing
+amr_df_processed_one = amr_df_filled.rolling(window = 3, center = True).mean().dropna()
+
+fig, ax = plt.subplots(3, 5, sharex = True, figsize = (12, 8))
+ax = ax.flatten()
+
+for i, j in enumerate(amr_df_processed_one.columns):
+    data = amr_df_processed_one[j]
+    mutual_info = tdmi.tdmi(data, 9, 4)
+    ax[i].plot(np.arange(1, 10, 1), mutual_info, 'o-', lw = 1.2)
+    ax[i].grid('--', c = 'grey', alpha = 0.3)
+    ax[i].set_title(j, loc = 'left', size = 9.5)
+
+fig.supxlabel('Time [Months]')
+fig.supylabel('Mutual Information')
+fig.suptitle('Average Mutual Information')
+plt.tight_layout()
+plt.show()
+
+tau_all = [3, 3, 4, 5, 3, 4, 3, 4, 5, 4, 5, 5, 4, 4]
+
+fig, ax = plt.subplots(3, 5, sharex = True, figsize = (12, 6))
+ax = ax.flatten()
+max_E = 11
+
+for i, j in enumerate(amr_df_processed_one.columns):
+    
+    opt_E = []
+    for e in np.arange(1, max_E):
+
+        r = afn.afn(amr_df_processed_one[j], e, tau_all[i], 'euclidean', 1, None)
+        opt_E.append(np.asarray(r).T)
+        
+    E1 = [opt_E[i][0] / opt_E[i-1][0] for i in range(1, len(opt_E))]
+    ax[i].plot(np.arange(1, max_E-1), E1, 'o-')
+    ax[i].grid('--', alpha = 0.4, color = 'grey')
+    ax[i].set_title(j, fontsize=11)
+    
+fig.supylabel('E1 Score')
+fig.supxlabel('No. of Embedding Dimension')
+fig.suptitle("Cao's FNN for choosing optimal embedding dimension")
+plt.tight_layout()
+plt.show()
+
+E_all = [5, 6, 5, 4, 4, 4, 5, 7, 7, 5, 5, 4, 5, 4, 4]
+
+fig, ax = plt.subplots(3, 5, subplot_kw = dict(projection = '3d'), figsize = (12, 6))
+ax = ax.flatten()
+
+for i, j in enumerate(amr_df_processed_one.columns): 
+    
+    M = mv.build_shadow(amr_df_processed_one[j], E_all[i], tau_all[i])
+    ax[i].plot(M[:,0], M[:,1], M[:,2], lw = 1.2)
+    ax[i].set_title(j, size = 9)
+
+titles = amr_df_processed_one.columns
+
+# 1) Temperature
+
+L_ranges = [np.arange(28, 90, 5)] * 7 + [np.arange(38, 90, 5)] + [np.arange(43, 90, 5)] + [np.arange(28, 90, 2)] + [np.arange(33, 90, 2)] + [np.arange(28 , 90, 5)] * 3
+
+fig, ax = plt.subplots(3, 5, figsize = (18, 8))
+ax = ax.flatten()
+
+figs = []
+for i in range(14):
+    fig_ax = ccm_result_1(CCM.CCM, amr_df_processed_one.iloc[1:-1,i].values, Temperature.values.ravel(), L_ranges[i], 
+                          4, tau_all[i], 4, E_all[i])
+    fig_ax.set_title(titles[i])
+    fig_ax.grid('--', c='grey', alpha=0.4)
+
+    figs.append(fig_ax)
+
+plt.show()
+
+fig, ax = plt.subplots(3, 5, figsize=(20, 8))
+ax = ax.flatten()
+
+for i in range(14):
+
+    source_ax = figs[i]
+
+    for line in source_ax.lines:
+        ax[i].plot(
+            line.get_xdata(),
+            line.get_ydata(),
+            label=line.get_label(),
+            color=line.get_color(),
+            linestyle=line.get_linestyle(),
+            linewidth=line.get_linewidth(),
+            marker=line.get_marker())
+
+    ax[i].set_title(source_ax.get_title(loc='center'))
+    ax[i].set_xlabel(source_ax.get_xlabel())
+    ax[i].set_ylabel(source_ax.get_ylabel())
+    ax[i].grid('--', c='grey', alpha=0.4)
+
+    if len(source_ax.get_legend_handles_labels()[0]) > 0:
+
+        ax[i].legend()
+
+plt.tight_layout()
+plt.show()
