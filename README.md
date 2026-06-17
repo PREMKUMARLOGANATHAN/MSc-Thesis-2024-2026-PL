@@ -13,7 +13,7 @@ All the code is writen by the author **Prem Kumar Loganathan** (@PREMKUMARLOGANA
 - [tdmi.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/tdmi.py) – Choosing Optimal Time Delay (τ) using Fraser and Swinney Average Mutual Information Criterion (Fraser & Swinney, 1986)
 - [thesis_amr_code.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/thesis_amr_code.py) – Inferring Causal Relationship between AntiMicrobial Resistance (AMR) and Climate Variables
 - [thesis_amu_code.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/thesis_amu_code.py) – Inferring Causal Relationship between AntiMicrobial Usage (AMU) and Climate Variables
-- This research is inspired by the work '[Inferring a Causal Relationship between Environmental Factors and Respiratory Infections Using Convergent Cross-Mapping](https://doi.org/10.3390/e25050807)' by (Chen et al., 2023)
+- This research is inspired by the work [Inferring a Causal Relationship between Environmental Factors and Respiratory Infections Using Convergent Cross-Mapping](https://doi.org/10.3390/e25050807) by (Chen et al., 2023)
 
 ## Bibliography
 
