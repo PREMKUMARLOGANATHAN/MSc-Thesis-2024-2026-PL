@@ -20,7 +20,6 @@ from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 import cmocean
 import geopandas as gpd
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import xarray as xr
 import rioxarray as rio
@@ -204,13 +203,13 @@ humidity = xr.open_mfdataset(humidity_path, )
 humidity_be = humidity.sel(lat = slice(52.5, 47.5),lon = slice(1.75, 6.9), time = slice('2017-01-01', '2024-12-31'))
 
 rh_vars = [
-    "Relative_Humidity_2m_06h",
-    "Relative_Humidity_2m_09h",
-    "Relative_Humidity_2m_12h",
-    "Relative_Humidity_2m_15h",
-    "Relative_Humidity_2m_18h"]
-rh_combined = xr.concat([humidity_be[v] for v in rh_vars], dim="hour")
-humidity_be["Relative_Humidity_2m_Daily_Mean"] = rh_combined.mean(dim="hour")
+    'Relative_Humidity_2m_06h',
+    'Relative_Humidity_2m_09h',
+    'Relative_Humidity_2m_12h',
+    'Relative_Humidity_2m_15h',
+    'Relative_Humidity_2m_18h']
+rh_combined = xr.concat([humidity_be[v] for v in rh_vars], dim='hour')
+humidity_be['Relative_Humidity_2m_Daily_Mean'] = rh_combined.mean(dim='hour')
 humidity_be_daily = humidity_be.drop_vars(rh_vars)
 humidity_be_daily = humidity_be_daily.rename({'lon': 'x', 'lat' : 'y'})
 humidity_be_daily = humidity_be_daily.rio.write_crs('EPSG:4326')
@@ -275,7 +274,7 @@ ax.grid('--', c = 'grey', alpha = 0.3)
 plt.show()
 
 # Average Relative Humidity (2017 - 2024)
-rh_mean = hum_be_monthly_mean.mean(dim="time")
+rh_mean = hum_be_monthly_mean.mean(dim='time')
 plt.rcParams.update(plt.rcParamsDefault)
 plt.rcParams.update({'figure.dpi': 600, 'axes.titlesize': 16, 'axes.labelsize': 12,
     'xtick.labelsize': 11, 'ytick.labelsize': 11})
@@ -591,7 +590,7 @@ ax.tick_params('x', rotation = 90)
 ax.grid('--', c = 'grey', alpha = 0.3)
 
 # Average Precipitation (2017 - 2024)
-tp_mean = tp_be_monthly_mean.mean(dim="time")
+tp_mean = tp_be_monthly_mean.mean(dim='time')
 
 plt.rcParams.update(plt.rcParamsDefault)
 plt.rcParams.update({'figure.dpi': 600, 'axes.titlesize': 16, 'axes.labelsize': 12,
