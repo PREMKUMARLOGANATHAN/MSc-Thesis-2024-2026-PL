@@ -6,7 +6,7 @@ All the code is writen by the author **Prem Kumar Loganathan** (@PREMKUMARLOGANA
 ## What is it?
 - [CCM.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/CCM.py) – Testing Causal Relationship using Convergent Cross Mapping (CCM) (Sugihara et al., 2012)
 - [afn.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/afn.py) – Choosing Optimal Embedding Dimension (E) using Cao's FNN method (Cao, 1997)
-- [environmental_variables_preprocessing.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/environmental_variables_preprocessing.py) - Converting environmental variables to same temporal resolution as AntiMicrobial Usage and Resistance Dataset
+- [climate_variables_preprocessing.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/environmental_variables_preprocessing.py) - Converting environmental variables to same temporal resolution as AntiMicrobial Usage and Resistance Dataset
 - [ccm_result_1.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/ccm_result_1.py) – Used to plot the CCM results (without bootstrapping)
 - [ccm_result_with_bootstrapping.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/ccm_result_with_bootstrapping.py) – Used to plot the CCM results (with bootstrapping)
 - [manifold_visualisation.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/manifold_visualisation.py) – Visualise the reconstructed shadow manifold
