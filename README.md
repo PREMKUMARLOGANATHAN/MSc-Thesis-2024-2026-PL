@@ -1,19 +1,20 @@
 # MSc-Thesis-2024-2026-PL
 
-Github repository for the codes corresponding to the master thesis on 'Environmental Drivers of Climate Change on AntiMicrobial Resistance'
+Github repository for the codes corresponding to the master thesis on 'Investigating Climate-Driven Causal Relationships in Antimicrobial Use and Resistance in Animals'
 All the code is writen by the author **Prem Kumar Loganathan** (@PREMKUMARLOGANATHAN) (email: premkumar.loganathan@student.kuleuven.be)
 
 ## What is it?
 - [CCM.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/CCM.py) – Testing Causal Relationship using Convergent Cross Mapping (CCM) (Sugihara et al., 2012)
 - [afn.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/afn.py) – Choosing Optimal Embedding Dimension (E) using Cao's FNN method (Cao, 1997)
-- [climate_variables_preprocessing.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/environmental_variables_preprocessing.py) - Converting environmental variables to same temporal resolution as AntiMicrobial Usage and Resistance Dataset
+- [climate_variables_preprocessing.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/environmental_variables_preprocessing.py) - Converting environmental variables to the same temporal resolution as AntiMicrobial Usage (AMU) and AntiMicrobial Resistance (AMR) Dataset
 - [ccm_result_1.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/ccm_result_1.py) – Used to plot the CCM results (without bootstrapping)
 - [ccm_result_with_bootstrapping.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/ccm_result_with_bootstrapping.py) – Used to plot the CCM results (with bootstrapping)
 - [manifold_visualisation.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/manifold_visualisation.py) – Visualise the reconstructed shadow manifold
 - [preprocessing.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/preprocessing.py) – Normalise the data to zero mean and unit variance
 - [tdmi.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/tdmi.py) – Choosing Optimal Time Delay (τ) using Fraser and Swinney Average Mutual Information Criterion (Fraser & Swinney, 1986)
-- [thesis_amr_code.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/thesis_amr_code.py) – Inferring Causal Relationship between AntiMicrobial Resistance (AMR) and Climate Variables
-- [thesis_amu_code.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/thesis_amu_code.py) – Inferring Causal Relationship between AntiMicrobial Usage (AMU) and Climate Variables
+- [thesis_amr_code.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/thesis_amr_code.py) – Inferring Causal Relationship between AMR and Climate Variables
+- [thesis_amu_code.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/thesis_amu_code.py) – Inferring Causal Relationship between AMU and Climate Variables
+- [thesis_amu_x_amr_code.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/thesis_amu_x_amr_code.py) - Inferring Causal Relationship between AMU and AMR
 - This research is inspired by the work [Inferring a Causal Relationship between Environmental Factors and Respiratory Infections Using Convergent Cross-Mapping](https://doi.org/10.3390/e25050807) by (Chen et al., 2023)
 
 ## Bibliography
