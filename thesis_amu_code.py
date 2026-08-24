@@ -3,7 +3,7 @@
 '''
 
 This code is written by Prem Kumar Loganathan for the MSc Thesis titled, 
-'Investigating Climate-Driven Causal Relationships of Antimicrobial Usage and Resistance in Food-Producing Animals'
+'Investigating Climate-driven Causal Relationships of Antimicrobial Usage and Resistance in Food-Producing Animals'
 
 All the class objects and user-defined functions needed for this code is made available in the same repository. 
 No explanation will be provided anywhere in code until and unless necessary.
