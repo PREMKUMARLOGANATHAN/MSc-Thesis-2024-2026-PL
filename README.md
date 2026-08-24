@@ -1,6 +1,6 @@
 # MSc-Thesis-2024-2026-PL
 
-Github repository for the codes corresponding to the master thesis on 'Investigating Climate-Driven Causal Relationships in Antimicrobial Use and Resistance in Animals'
+Github repository for the codes corresponding to the master thesis on 'Investigating Climate-Driven Causal Relationships in Antimicrobial Use and Resistance in Food-Producing Animals'
 All the code is writen by the author **Prem Kumar Loganathan** (@PREMKUMARLOGANATHAN) (email: premkumar.loganathan@student.kuleuven.be)
 
 ## What is it?
