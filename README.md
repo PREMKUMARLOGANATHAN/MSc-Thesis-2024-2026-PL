@@ -15,6 +15,7 @@ All the code is writen by the author **Prem Kumar Loganathan** (@PREMKUMARLOGANA
 - [thesis_amr_code.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/thesis_amr_code.py) – Inferring Causal Relationship between AMR and Climate Variables
 - [thesis_amu_code.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/thesis_amu_code.py) – Inferring Causal Relationship between AMU and Climate Variables
 - [thesis_amu_x_amr_code.py](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/blob/main/thesis_amu_x_amr_code.py) - Inferring Causal Relationship between AMU and AMR
+- [Images](https://github.com/PREMKUMARLOGANATHAN/MSc-Thesis-2024-2026-PL/tree/main/Images) - Images used in the thesis
 - This research is inspired by the work [Inferring a Causal Relationship between Environmental Factors and Respiratory Infections Using Convergent Cross-Mapping](https://doi.org/10.3390/e25050807) by (Chen et al., 2023)
 
 ## Bibliography
